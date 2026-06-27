@@ -1,5 +1,0 @@
-compatibility_date = "2024-11-18"
-pages_build_output_dir = "dist"
-
-[vars]
-RUNWAYML_API_KEY = "key_067e63110da981911d8d99e0b97ffcd20bc64d062fa1134d2f1d9793b97516c18e38d533f97b8754fa65f3a26936570137f8ceb3a3102cb9df5ba51a920e309f"
