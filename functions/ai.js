@@ -74,7 +74,13 @@ export async function onRequest(context) {
 
           const statusUrl = `${FAL_API_BASE}/${FAL_MODEL}/requests/${taskId}/status`;
           const statusRes = await fetch(statusUrl, { headers: { 'Authorization': `Key ${runtimeConfig.apiKey}` } });
-          const statusData = await statusRes.json();
+          const statusText = await statusRes.text();
+          let statusData = {};
+          try {
+            statusData = statusText ? JSON.parse(statusText) : {};
+          } catch {
+            throw new Error(`Fal.ai returned invalid status JSON for task ${taskId}`);
+          }
 
           if (!statusRes.ok) throw new Error(`Status check failed: ${statusData.detail || statusRes.statusText}`);
 
@@ -89,7 +95,13 @@ export async function onRequest(context) {
             const resultRes = await fetch(`${FAL_API_BASE}/${FAL_MODEL}/requests/${taskId}`, {
               headers: { 'Authorization': `Key ${runtimeConfig.apiKey}` }
             });
-            const resultData = await resultRes.json();
+            const resultText = await resultRes.text();
+            let resultData = {};
+            try {
+              resultData = resultText ? JSON.parse(resultText) : {};
+            } catch {
+              throw new Error(`Fal.ai returned invalid result JSON for task ${taskId}`);
+            }
             if (!resultRes.ok) throw new Error(`Failed to retrieve result: ${resultData.detail || resultRes.statusText}`);
 
             const falVideoUrl = resultData.video?.url;
@@ -140,7 +152,13 @@ async function startImageToVideoJob(imageUrl, prompt, duration, aspectRatio, ori
     }),
   });
 
-  const data = await response.json();
+  const responseText = await response.text();
+  let data = {};
+  try {
+    data = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    throw new Error('Fal.ai returned an invalid response while starting the video job.');
+  }
   if (!response.ok) throw new Error(data.detail || `Fal.ai API returned status ${response.status}`);
 
   await runtimeConfig.taskInfoKv.put(data.request_id, JSON.stringify({
