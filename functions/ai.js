@@ -72,7 +72,7 @@ export async function onRequest(context) {
           const { taskId } = body;
           if (!taskId) throw new Error('Invalid status check request.');
 
-          const statusUrl = `${FAL_API_BASE}/${FAL_MODEL}/requests/${taskId}/status`;
+          const statusUrl = `${FAL_API_BASE}/${FAL_MODEL}/requests/${taskId}`;
           const statusRes = await fetch(statusUrl, { headers: { 'Authorization': `Key ${runtimeConfig.apiKey}` } });
           const statusText = await statusRes.text();
           let statusData = {};
@@ -92,19 +92,7 @@ export async function onRequest(context) {
             const taskInfo = await runtimeConfig.taskInfoKv.get(taskId, { type: 'json' });
             if (!taskInfo?.r2Key) throw new Error(`Could not find R2 destination key for task ${taskId}.`);
 
-            const resultRes = await fetch(`${FAL_API_BASE}/${FAL_MODEL}/requests/${taskId}`, {
-              headers: { 'Authorization': `Key ${runtimeConfig.apiKey}` }
-            });
-            const resultText = await resultRes.text();
-            let resultData = {};
-            try {
-              resultData = resultText ? JSON.parse(resultText) : {};
-            } catch {
-              throw new Error(`Fal.ai returned invalid result JSON for task ${taskId}`);
-            }
-            if (!resultRes.ok) throw new Error(`Failed to retrieve result: ${resultData.detail || resultRes.statusText}`);
-
-            const falVideoUrl = resultData.video?.url;
+            const falVideoUrl = statusData.video?.url;
             if (!falVideoUrl) throw new Error('No video URL returned by Fal.ai.');
 
             console.log(`[${taskId}] Downloading video from Fal.ai: ${falVideoUrl}`);
@@ -133,7 +121,8 @@ export async function onRequest(context) {
     }
   } catch (error) {
     console.error('Error:', error.message);
-    return jsonResponse({ success: false, error: error.message }, 500);
+    console.error(error.stack);
+    return jsonResponse({ success: false, error: error.message, stack: error.stack }, 500);
   }
 }
 
