@@ -1,0 +1,18 @@
+name = "react-fal-image-r2-16-9-agent"
+compatibility_date = "2024-11-18"
+pages_build_output_dir = "dist"
+
+[vars]
+R2_PUBLIC_URL = "https://react-image-video.r2.dev" #  https://react-fal-image-r2-16-9-agent.pages.dev/
+
+[[kv_namespaces]]
+binding = "TASK_INFO_KV"
+id = "5f3c1a2b9d4e6f7a8b9c0d1e2f3a4b5c"
+
+[[r2_buckets]]
+binding = "IMAGE_BUCKET"
+bucket_name = "react-image-video"
+
+# Secrets such as FAL_KEY or FAL_API_KEY should be set with Wrangler or in the Cloudflare dashboard.
+# Example:
+# npx wrangler secret put FAL_KEY
