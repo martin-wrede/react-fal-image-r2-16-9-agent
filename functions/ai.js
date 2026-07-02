@@ -1,5 +1,11 @@
 const FAL_API_BASE = 'https://queue.fal.run';
-const FAL_MODEL = 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video';
+const FAL_MODEL = 'fal-ai/kling-video/v2.5-turbo/pro/image-to-video'; // full path — used only for the POST submission
+// Queue status/result endpoints are scoped to just {owner}/{alias}, not the full
+// sub-application path — fal.ai's own client (fal-js queue.ts) truncates to this
+// same prefix before building /requests/{id}/status and /requests/{id} URLs.
+// Using the full FAL_MODEL path for those GETs hits an invalid route and fal.ai
+// returns 405 Method Not Allowed, which is the bug being fixed here.
+const FAL_APP_NAMESPACE = FAL_MODEL.split('/').slice(0, 2).join('/'); // 'fal-ai/kling-video'
 
 function resolveRuntimeConfig(env) {
   const apiKey = env.FAL_KEY || env.FAL_API_KEY || env.RUNWAYML_API_KEY || (typeof process !== 'undefined' ? process.env?.FAL_API_KEY : undefined);
@@ -72,7 +78,7 @@ export async function onRequest(context) {
           const { taskId } = body;
           if (!taskId) throw new Error('Invalid status check request.');
 
-          const statusUrl = `${FAL_API_BASE}/${FAL_MODEL}/requests/${taskId}`;
+          const statusUrl = `${FAL_API_BASE}/${FAL_APP_NAMESPACE}/requests/${taskId}/status`;
           const statusRes = await fetch(statusUrl, { headers: { 'Authorization': `Key ${runtimeConfig.apiKey}` } });
           const statusText = await statusRes.text();
           let statusData = {};
@@ -92,7 +98,20 @@ export async function onRequest(context) {
             const taskInfo = await runtimeConfig.taskInfoKv.get(taskId, { type: 'json' });
             if (!taskInfo?.r2Key) throw new Error(`Could not find R2 destination key for task ${taskId}.`);
 
-            const falVideoUrl = statusData.video?.url;
+            // The /status endpoint only reports queue state — the actual output
+            // (video URL) lives at the separate /requests/{id} result endpoint.
+            const resultUrl = `${FAL_API_BASE}/${FAL_APP_NAMESPACE}/requests/${taskId}`;
+            const resultRes = await fetch(resultUrl, { headers: { 'Authorization': `Key ${runtimeConfig.apiKey}` } });
+            const resultText = await resultRes.text();
+            let resultData = {};
+            try {
+              resultData = resultText ? JSON.parse(resultText) : {};
+            } catch {
+              throw new Error(`Fal.ai returned invalid result JSON for task ${taskId}`);
+            }
+            if (!resultRes.ok) throw new Error(`Result fetch failed: ${resultData.detail || resultRes.statusText}`);
+
+            const falVideoUrl = resultData.video?.url;
             if (!falVideoUrl) throw new Error('No video URL returned by Fal.ai.');
 
             console.log(`[${taskId}] Downloading video from Fal.ai: ${falVideoUrl}`);
