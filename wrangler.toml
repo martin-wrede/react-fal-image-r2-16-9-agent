@@ -3,11 +3,13 @@ compatibility_date = "2024-11-18"
 pages_build_output_dir = "dist"
 
 [vars]
-R2_PUBLIC_URL = "https://react-image-video.r2.dev" #  https://react-fal-image-r2-16-9-agent.pages.dev/
+# R2.dev public URLs use a random pub-<hash>.r2.dev subdomain, not the bucket
+# name — confirm the real one with: wrangler r2 bucket dev-url get react-image-video
+R2_PUBLIC_URL = "https://pub-2e08632872a645f89f91aad5f2904c70.r2.dev"
 
 [[kv_namespaces]]
 binding = "TASK_INFO_KV"
-id = "5f3c1a2b9d4e6f7a8b9c0d1e2f3a4b5c"
+id = "43697a3727724e6ca1e6ee7f577b175c"
 
 [[r2_buckets]]
 binding = "IMAGE_BUCKET"
