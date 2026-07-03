@@ -57,6 +57,12 @@ export async function onRequest(context) {
   if (!imageUrl) return jsonError('imageUrl is required', 400);
 
   // ── Step 1: Submit to fal.ai nano-banana-2 ───────────────────────────────
+  // Output: 2K landscape (2560×1440, 16:9)
+  // image_size presets: square_hd | square | portrait_4_3 | portrait_16_9
+  //                     landscape_4_3 | landscape_16_9
+  // For explicit 2K: { width: 2560, height: 1440 }
+  const OUTPUT_SIZE = { width: 2560, height: 1440 }; // 2K landscape 16:9
+
   let falTaskId;
   try {
     const falRes = await fetch(`https://queue.fal.run/${FAL_MODEL}`, {
@@ -71,7 +77,8 @@ export async function onRequest(context) {
         negative_prompt: 'logos, watermarks, text, modern design, contemporary style, digital artifacts',
         num_inference_steps: 30,
         guidance_scale: 7.5,
-        strength: 0.65,  // 0 = keep original structure, 1 = full redraw
+        strength: 0.65,       // 0 = keep original structure, 1 = full redraw
+        image_size: OUTPUT_SIZE, // 2K landscape output
       }),
     });
 
