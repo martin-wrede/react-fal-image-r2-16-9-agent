@@ -74,24 +74,6 @@ export async function onRequest(context) {
       const { action } = body;
 
       switch (action) {
-
-        // ── startVideoFromUrl — called by run_video_pipeline.py after img2img ──
-        case 'startVideoFromUrl': {
-          const { imageUrl, videoPrompt = '', duration = 5 } = body;
-          if (!imageUrl) throw new Error('imageUrl is required for startVideoFromUrl');
-
-          return await startImageToVideoJob(
-            imageUrl,
-            videoPrompt,
-            String(duration),
-            '16:9',                        // always landscape for Moon News
-            `story-${Date.now()}.mp4`,
-            runtimeConfig,
-            FAL_HEADERS
-          );
-        }
-
-        // ── status — poll fal.ai task, save video to R2 when complete ─────────
         case 'status': {
           const { taskId } = body;
           if (!taskId) throw new Error('Invalid status check request.');
@@ -116,6 +98,8 @@ export async function onRequest(context) {
             const taskInfo = await runtimeConfig.taskInfoKv.get(taskId, { type: 'json' });
             if (!taskInfo?.r2Key) throw new Error(`Could not find R2 destination key for task ${taskId}.`);
 
+            // The /status endpoint only reports queue state — the actual output
+            // (video URL) lives at the separate /requests/{id} result endpoint.
             const resultUrl = `${FAL_API_BASE}/${FAL_APP_NAMESPACE}/requests/${taskId}`;
             const resultRes = await fetch(resultUrl, { headers: { 'Authorization': `Key ${runtimeConfig.apiKey}` } });
             const resultText = await resultRes.text();
@@ -148,7 +132,7 @@ export async function onRequest(context) {
         }
 
         default:
-          throw new Error(`Invalid action specified: "${action}"`);
+          throw new Error('Invalid action specified.');
       }
     }
     else {
@@ -193,6 +177,9 @@ async function startImageToVideoJob(imageUrl, prompt, duration, aspectRatio, ori
   return jsonResponse({ success: true, taskId: data.request_id, status: data.status });
 }
 
+// fal.ai errors show up as a string, a FastAPI-style validation array, or an
+// object — stringify safely instead of letting template literals coerce
+// objects into "[object Object]".
 function describeFalError(data) {
   if (!data || !data.detail) return null;
   if (typeof data.detail === 'string') return data.detail;
