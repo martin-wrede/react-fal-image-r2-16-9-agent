@@ -12,6 +12,7 @@
 // POST /api/process-image
 // Body: { imageUrl, headline, storyIndex, episodeDate }
 // Response: { processedImageUrl, r2Key }
+//
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
