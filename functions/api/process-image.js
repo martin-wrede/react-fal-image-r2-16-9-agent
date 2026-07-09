@@ -1,5 +1,5 @@
 // functions/api/process-image.js
-// Cloudflare Pages Function — image-to-image via fal.ai nano-banana-2
+// Cloudflare Pages Function — image-to-image via fal.ai FLUX Dev
 //
 // Takes a raw news image URL, applies 1960s retro aesthetic via fal.ai,
 // removes logos/watermarks, stores the result in R2.
@@ -19,17 +19,19 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-const FAL_MODEL = 'fal-ai/nano-banana-2/edit';
+// nano-banana-2 is gated — using FLUX Dev img2img which is publicly available
+const FAL_MODEL = 'fal-ai/flux/dev/image-to-image';
 
-// 1960s retro aesthetic prompt — applied to every news image
+// 1960s retro aesthetic prompt — style transfer, NOT full replacement
+// Goal: restyle clothing, colors, and environment while keeping people/faces/objects intact.
 const STYLE_PROMPT = [
-  'Transform to 1960s Life Magazine editorial photography.',
-  'Kodachrome film stock, warm analog colors, slight grain.',
-  'Mid-century modern composition, dramatic directional lighting.',
-  'Remove all logos, watermarks, text overlays, and modern branding.',
-  'Retain the scene and subjects but render in retro-futuristic 1960s style.',
-  'Harvest gold, burnt orange, teal color palette.',
-  'Cinematic depth of field, vintage photojournalism aesthetic.',
+  'Restyle as 1960s Life Magazine editorial photography.',
+  'Kodachrome film colors, warm analog tones, subtle grain and light halation.',
+  'Keep all people, faces, and objects exactly as they are — do not replace or move them.',
+  'Only change: clothing to mid-century fashion, color grading to harvest gold and burnt orange,',
+  'background to 1960s environment, remove logos watermarks and modern text overlays.',
+  'Mid-century modern lighting, vintage photojournalism depth of field.',
+  'Retro-futuristic atmosphere, muted teal shadows.',
 ].join(' ');
 
 export async function onRequest(context) {
@@ -56,12 +58,10 @@ export async function onRequest(context) {
   const { imageUrl, headline = 'story', storyIndex = 0, episodeDate } = body;
   if (!imageUrl) return jsonError('imageUrl is required', 400);
 
-  // ── Step 1: Submit to fal.ai nano-banana-2 ───────────────────────────────
-  // Output: 2K landscape (2560×1440, 16:9)
-  // image_size presets: square_hd | square | portrait_4_3 | portrait_16_9
-  //                     landscape_4_3 | landscape_16_9
-  // For explicit 2K: { width: 2560, height: 1440 }
-  const OUTPUT_SIZE = { width: 2560, height: 1440 }; // 2K landscape 16:9
+  // ── Step 1: Submit to fal.ai FLUX Dev image-to-image ────────────────────
+  // FLUX Dev img2img: strength 0.40 preserves original subjects/composition
+  // image_size: landscape_16_9 = 1360×768; for 2K use { width: 2560, height: 1440 }
+  const OUTPUT_SIZE = 'landscape_16_9'; // FLUX preset — fast and reliable
 
   let falTaskId;
   try {
@@ -74,11 +74,11 @@ export async function onRequest(context) {
       body: JSON.stringify({
         image_url: imageUrl,
         prompt: STYLE_PROMPT,
-        negative_prompt: 'logos, watermarks, text, modern design, contemporary style, digital artifacts',
-        num_inference_steps: 30,
-        guidance_scale: 7.5,
-        strength: 0.65,       // 0 = keep original structure, 1 = full redraw
-        image_size: OUTPUT_SIZE, // 2K landscape output
+        strength: 0.40,       // 0 = keep original, 1 = full redraw; 0.40 preserves subjects
+        image_size: OUTPUT_SIZE,
+        num_inference_steps: 28,
+        guidance_scale: 3.5,  // FLUX Dev recommended range
+        enable_safety_checker: false,
       }),
     });
 
@@ -103,14 +103,14 @@ export async function onRequest(context) {
 
     try {
       const statusRes = await fetch(
-        `https://queue.fal.run/${FAL_MODEL}/requests/${falTaskId}/status`,
+        `https://queue.fal.run/fal-ai/flux/requests/${falTaskId}/status`,
         { headers: { 'Authorization': `Key ${env.FAL_API_KEY}` } }
       );
       const statusData = await statusRes.json();
 
       if (statusData.status === 'COMPLETED') {
         const resultRes = await fetch(
-          `https://queue.fal.run/${FAL_MODEL}/requests/${falTaskId}`,
+          `https://queue.fal.run/fal-ai/flux/requests/${falTaskId}`,
           { headers: { 'Authorization': `Key ${env.FAL_API_KEY}` } }
         );
         const result = await resultRes.json();
