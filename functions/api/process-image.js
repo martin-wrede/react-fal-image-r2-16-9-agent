@@ -12,7 +12,6 @@
 // POST /api/process-image
 // Body: { imageUrl, headline, storyIndex, episodeDate }
 // Response: { processedImageUrl, r2Key }
-//
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -61,8 +60,9 @@ export async function onRequest(context) {
 
   // ── Step 1: Submit to fal.ai FLUX Dev image-to-image ────────────────────
   // FLUX Dev img2img: strength 0.40 preserves original subjects/composition
-  // image_size: landscape_16_9 = 1360×768; for 2K use { width: 2560, height: 1440 }
-  const OUTPUT_SIZE = 'landscape_16_9'; // FLUX preset — fast and reliable
+  // Explicit pixel dimensions force output size regardless of input image size.
+  // This prevents tiny news thumbnails (<300px) from being rejected by Kling video.
+  const OUTPUT_SIZE = { width: 1280, height: 720 }; // 720p — always above Kling's 300×300 minimum
 
   let falTaskId;
   try {
